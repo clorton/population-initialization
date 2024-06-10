@@ -28,21 +28,25 @@ class PriorityQueue:
 
 
 def _pq_push(pq: PriorityQueue, payload: Any, priority: np.uint32):
-    """Push an item with a priority into the priority queue."""
-    if pq.size >= len(pq.payloads):
+    """Push an item onto the priority queue."""
+    if (index := pq.size) >= len(pq.payloads):
         raise IndexError("Priority queue is full")
-    pq.payloads[pq.size] = payload
-    pq.priority[pq.size] = priority
-    pq.size += 1
-    index = pq.size - 1
+    pq.payloads[index] = payload
+    pq.priority[index] = priority
+
+    pays = pq.payloads
+    pris = pq.priority
+
     while index > 0:
         parent_index = (index - 1) // 2
-        if pq.priority[index] < pq.priority[parent_index]:
-            pq.payloads[index], pq.payloads[parent_index] = pq.payloads[parent_index], pq.payloads[index]
-            pq.priority[index], pq.priority[parent_index] = pq.priority[parent_index], pq.priority[index]
+        if pris[index] < pris[parent_index]:
+            pays[index], pays[parent_index] = pays[parent_index], pays[index]
+            pris[index], pris[parent_index] = pris[parent_index], pris[index]
             index = parent_index
         else:
             break
+
+    pq.size += 1
 
     return
 
@@ -54,25 +58,29 @@ def _pq_pop(pq: PriorityQueue) -> Tuple[Any, np.uint32]:
 
     payload, priority = pq.peek()
 
-    pq.payloads[0] = pq.payloads[pq.size - 1]
-    pq.priority[0] = pq.priority[pq.size - 1]
     pq.size -= 1
+    size = pq.size
+    pq.payloads[0] = pq.payloads[size]
+    pq.priority[0] = pq.priority[size]
+
+    pays = pq.payloads
+    pris = pq.priority
 
     index = 0
-    while index < pq.size:
+    while index < size:
         left_child_index = 2 * index + 1
         right_child_index = 2 * index + 2
         smallest = index
 
-        if left_child_index < pq.size and pq.priority[left_child_index] < pq.priority[smallest]:
+        if left_child_index < size and pris[left_child_index] < pris[smallest]:
             smallest = left_child_index
 
-        if right_child_index < pq.size and pq.priority[right_child_index] < pq.priority[smallest]:
+        if right_child_index < size and pris[right_child_index] < pris[smallest]:
             smallest = right_child_index
 
         if smallest != index:
-            pq.payloads[index], pq.payloads[smallest] = pq.payloads[smallest], pq.payloads[index]
-            pq.priority[index], pq.priority[smallest] = pq.priority[smallest], pq.priority[index]
+            pays[index], pays[smallest] = pays[smallest], pays[index]
+            pris[index], pris[smallest] = pris[smallest], pris[index]
             index = smallest
         else:
             break

@@ -45,6 +45,14 @@ def main(args):
             i, dods[i]
         )  # payload is the agent's index, priority is the date of death
 
+    limit = max(dods)
+    print("Processing agents by their dates of death...")
+    for i in tqdm(range(limit + 1)):  # include the last day of death
+        while pq.size > 0 and pq.peek()[1] == i:
+            agent_index, _ = pq.pop()
+            # do something with the agent at agent_index
+            pass
+
     return
 
 
