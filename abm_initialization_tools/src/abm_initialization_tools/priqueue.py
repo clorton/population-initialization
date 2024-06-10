@@ -2,7 +2,9 @@
 
 from typing import Any, Tuple
 
+import numba as nb
 import numpy as np
+
 
 class PriorityQueue:
     """A priority queue implemented using a heap."""
@@ -10,10 +12,16 @@ class PriorityQueue:
     def __init__(self, capacity, dtype=np.uint32):
         self.payloads = np.zeros(capacity, dtype=dtype)
         self.priority = np.zeros(capacity, dtype=np.uint32)
+        self.capacity = capacity
         self.size = 0
 
     def push(self, payload, priority):
-        _pq_push(self, payload, priority)
+        # _pq_push(self, payload, priority)
+        if self.size >= self.capacity:
+            raise IndexError("Priority queue is full")
+        _pq_push_nb(self.payloads, self.priority, self.size, payload, priority)
+        self.size += 1
+        return
 
     def peek(self) -> Tuple[Any, np.uint32]:
         if self.size == 0:
@@ -21,21 +29,63 @@ class PriorityQueue:
         return (self.payloads[0], self.priority[0])
 
     def pop(self) -> Tuple[Any, np.uint32]:
-        return _pq_pop(self)
+        ret = self.peek()
+        _pq_pop_nb(self.payloads, self.priority, self.size)
+        self.size -= 1
+        return ret
 
     def __len__(self):
         return self.size
+
+
+@nb.njit(
+    (nb.uint32[:], nb.uint32[:], nb.uint32, nb.uint32, nb.uint32),
+    nogil=True,
+    cache=True,
+)  # parallel n/a
+def _pq_push_nb(
+    payloads: np.ndarray,
+    priorities: np.ndarray,
+    size: np.uint32,
+    payload: np.uint32,
+    priority: np.uint32,
+) -> None:
+    """Push an item onto the priority queue."""
+    if size >= len(payloads):
+        raise IndexError("Priority queue is full")
+
+    payloads[size] = payload
+    priorities[size] = priority
+
+    index = size
+    while index > 0:
+        parent_index = (index - 1) // 2
+        if priorities[index] < priorities[parent_index]:
+            payloads[index], payloads[parent_index] = (
+                payloads[parent_index],
+                payloads[index],
+            )
+            priorities[index], priorities[parent_index] = (
+                priorities[parent_index],
+                priorities[index],
+            )
+            index = parent_index
+        else:
+            break
+
+    return
 
 
 def _pq_push(pq: PriorityQueue, payload: Any, priority: np.uint32):
     """Push an item onto the priority queue."""
     if (index := pq.size) >= len(pq.payloads):
         raise IndexError("Priority queue is full")
-    pq.payloads[index] = payload
-    pq.priority[index] = priority
 
     pays = pq.payloads
     pris = pq.priority
+
+    pays[index] = payload
+    pris[index] = priority
 
     while index > 0:
         parent_index = (index - 1) // 2
@@ -47,6 +97,51 @@ def _pq_push(pq: PriorityQueue, payload: Any, priority: np.uint32):
             break
 
     pq.size += 1
+
+    return
+
+
+@nb.njit(
+    (nb.uint32[:], nb.uint32[:], nb.uint32), nogil=True, cache=True
+)  # parallel n/a
+def _pq_pop_nb(
+    payloads: np.ndarray,
+    priorities: np.ndarray,
+    size: np.uint32,
+) -> None:
+    """Remove the item with the highest priority from the priority queue."""
+
+    size -= 1
+    payloads[0] = payloads[size]
+    priorities[0] = priorities[size]
+
+    index = 0
+    while index < size:
+        left_child_index = 2 * index + 1
+        right_child_index = 2 * index + 2
+        smallest = index
+
+        if (
+            left_child_index < size
+            and priorities[left_child_index] < priorities[smallest]
+        ):
+            smallest = left_child_index
+
+        if (
+            right_child_index < size
+            and priorities[right_child_index] < priorities[smallest]
+        ):
+            smallest = right_child_index
+
+        if smallest != index:
+            payloads[index], payloads[smallest] = payloads[smallest], payloads[index]
+            priorities[index], priorities[smallest] = (
+                priorities[smallest],
+                priorities[index],
+            )
+            index = smallest
+        else:
+            break
 
     return
 
